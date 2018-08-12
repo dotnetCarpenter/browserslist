@@ -288,9 +288,9 @@ afterEach(() => {
 
 it('query composition with AND operator', () => {
   // old behavior
-  expect(
-    browserslist('> 1%, not IE < 11, not Chrome < 67, not iOS < 11.4')
-  ).toEqual(resultFixture)
+  // expect(
+  //   browserslist('> 1%, not IE < 11, not Chrome < 67, not iOS < 11.4')
+  // ).toEqual(resultFixture)
 
   // new behavior
   expect(

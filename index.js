@@ -123,6 +123,17 @@ function resolve (queries, context) {
     selection = selection.trim()
     if (selection === '') return result
 
+    var isAnd = selection.indexOf('and ') > -1
+    if (isAnd) {
+      result.concat(
+        resolve(
+          selection.split(/and\s*/i),
+          context
+        )
+      )
+      debugger
+    }
+
     var isExclude = selection.indexOf('not ') === 0
     if (isExclude) {
       if (index === 0) {
@@ -139,6 +150,7 @@ function resolve (queries, context) {
       if (match) {
         var args = [context].concat(match.slice(1))
         var array = type.select.apply(browserslist, args)
+
         if (isExclude) {
           array = array.concat(array.map(function (j) {
             return j.replace(/\s\S+/, ' 0')
@@ -147,6 +159,15 @@ function resolve (queries, context) {
             return array.indexOf(j) === -1
           })
         }
+
+        if (isAnd) {
+          debugger
+          result.filter(function (j) {
+            return array.indexOf(j) === -1
+          })
+          debugger
+        }
+
         return result.concat(array)
       }
     }
