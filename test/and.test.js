@@ -294,6 +294,6 @@ it('query composition with AND operator', () => {
 
   // new behavior
   expect(
-    browserslist('last 1 version and not IE > 11 and > 1%')
+    browserslist('last 1 version and not IE < 11 and > 1%')
   ).toEqual(resultFixture)
 })
