@@ -15,6 +15,8 @@ var YEAR = 365.259641 * 24 * 60 * 60 * 1000
 var QUERY_OR = 1
 /** @constant {number} */
 var QUERY_AND = 2
+/** @constant {number} */
+var QUERY_NOT = 4
 
 function isVersionsMatch (versionA, versionB) {
   return (versionA + '.').indexOf(versionB + '.') === 0
@@ -183,31 +185,35 @@ function resolve (queries, context) {
         })
 
         switch (query.type) {
+          case QUERY_NOT:
+            return result.filter(function (j) {
+              return array.indexOf(j) === -1
+            })
           case QUERY_AND:
-            if (isExclude) {
-              return result.filter(function (j) {
-                // remove result items that are in array
-                // (the relative complement of array in result)
-                return array.indexOf(j) === -1
-              })
-            } else {
-              return result.filter(function (j) {
-                // remove result items not in array
-                // (intersect of result and array)
-                return array.indexOf(j) !== -1
-              })
-            }
+            // if (isExclude) {
+            //   return result.filter(function (j) {
+            //     // remove result items that are in array
+            //     // (the relative complement of array in result)
+            //     return array.indexOf(j) === -1
+            //   })
+            // } else {
+            return result.filter(function (j) {
+              // remove result items not in array
+              // (intersect of result and array)
+              return array.indexOf(j) !== -1
+            })
+            // }
           case QUERY_OR:
           default:
-            if (isExclude) {
-              var filter = { }
-              array.forEach(function (j) {
-                filter[j] = true
-              })
-              return result.filter(function (j) {
-                return !filter[j]
-              })
-            }
+            // if (isExclude) {
+            //   var filter = { }
+            //   array.forEach(function (j) {
+            //     filter[j] = true
+            //   })
+            //   return result.filter(function (j) {
+            //     return !filter[j]
+            //   })
+            // }
             // union of result and array
             return result.concat(array)
         }
@@ -322,20 +328,39 @@ function parse (queries) {
  * @returns {string} The rest of the query string minus the matched part.
  */
 function doMatch (string, qs) {
-  var or = /^(?:,\s*|\s+OR\s+)(.*)/i
-  var and = /^\s+AND\s+(.*)/i
+  var or = /(?:,\s*|\s+OR\s+)(?!NOT)(.*)/i
+  var and = /\s+AND\s+(.*)/i
+  var not = /\s+NOT\s+(.*)/i
+  var garbage = /(?:AND|OR|,|NOT)(?!.+)/i
 
-  return find(
+  return findAndCut(
     string,
     function (parsed, n, max) {
-      if (and.test(parsed)) {
-        qs.unshift({ type: QUERY_AND, queryString: parsed.match(and)[1] })
+      if (not.test(parsed)) {
+        qs.unshift({
+          type: QUERY_NOT,
+          queryString: parsed.match(not)[1].trim()
+        })
+        return true
+      } else if (and.test(parsed)) {
+        qs.unshift({
+          type: QUERY_AND,
+          queryString: parsed.match(and)[1].trim()
+        })
         return true
       } else if (or.test(parsed)) {
-        qs.unshift({ type: QUERY_OR, queryString: parsed.match(or)[1] })
+        qs.unshift({
+          type: QUERY_OR,
+          queryString: parsed.match(or)[1].trim()
+        })
         return true
-      } else if (n === max) {
-        qs.unshift({ type: QUERY_OR, queryString: parsed.trim() })
+      } else if (n === max) { // no more chars
+        qs.unshift({
+          type: QUERY_OR,
+          queryString: parsed.trim()
+        })
+        return true
+      } else if (garbage.test(parsed)) { // a combiner without query
         return true
       }
       return false
@@ -343,9 +368,9 @@ function doMatch (string, qs) {
   )
 }
 
-function find (string, predicate) {
+function findAndCut (string, predicate) {
   for (var n = 1, max = string.length; n <= max; n++) {
-    var parsed = string.substr(-n, n)
+    var parsed = string.substr(-n, n) // get n char from the end of the string
     if (predicate(parsed, n, max)) {
       return string.replace(parsed, '')
     }
