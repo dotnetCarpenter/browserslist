@@ -5,18 +5,11 @@ var path = require('path')
 var e2c = require('electron-to-chromium/versions')
 
 var BrowserslistError = require('./error')
+var parse = require('./parse')
 var env = require('./node') // Will load browser.js in webpack
 
 var FLOAT_RANGE = /^\d+(\.\d+)?(-\d+(\.\d+)?)*$/
 var YEAR = 365.259641 * 24 * 60 * 60 * 1000
-
-// Enum values MUST be powers of 2, so combination are safe
-/** @constant {number} */
-var QUERY_OR = 1
-/** @constant {number} */
-var QUERY_AND = 2
-/** @constant {number} */
-var QUERY_NOT = 4
 
 function isVersionsMatch (versionA, versionB) {
   return (versionA + '.').indexOf(versionB + '.') === 0
@@ -143,88 +136,6 @@ function unknownQuery (query) {
 }
 
 /**
- * Resolves queries into a browser list.
- * @param {string|string[]} queries Queries to combine.
- * Either an array of queries or a long string of queries.
- * @param {object} [context] Optional arguments to
- * the select function in `queries`.
- * @returns {string[]} A list of browsers
- */
-function resolve (queries, context) {
-  if (Array.isArray(queries)) {
-    queries = flatten(queries.map(parse))
-  } else {
-    queries = parse(queries)
-  }
-
-  return queries.reduce(function (result, query, index) {
-    var selection = query.queryString
-
-    var isExclude = selection.indexOf('not ') === 0
-    if (isExclude) {
-      if (index === 0) {
-        throw new BrowserslistError(
-          'Write any browsers query (for instance, `defaults`) ' +
-          'before `' + selection + '`')
-      }
-      selection = selection.slice(4)
-    }
-
-    for (var i = 0; i < QUERIES.length; i++) {
-      var type = QUERIES[i]
-      var match = selection.match(type.regexp)
-      if (match) {
-        var args = [context].concat(match.slice(1))
-        var array = type.select.apply(browserslist, args).map(function (j) {
-          var parts = j.split(' ')
-          if (parts[1] === '0') {
-            return parts[0] + ' ' + byName(parts[0]).versions[0]
-          } else {
-            return j
-          }
-        })
-
-        switch (query.type) {
-          case QUERY_NOT:
-            return result.filter(function (j) {
-              return array.indexOf(j) === -1
-            })
-          case QUERY_AND:
-            // if (isExclude) {
-            //   return result.filter(function (j) {
-            //     // remove result items that are in array
-            //     // (the relative complement of array in result)
-            //     return array.indexOf(j) === -1
-            //   })
-            // } else {
-            return result.filter(function (j) {
-              // remove result items not in array
-              // (intersect of result and array)
-              return array.indexOf(j) !== -1
-            })
-            // }
-          case QUERY_OR:
-          default:
-            // if (isExclude) {
-            //   var filter = { }
-            //   array.forEach(function (j) {
-            //     filter[j] = true
-            //   })
-            //   return result.filter(function (j) {
-            //     return !filter[j]
-            //   })
-            // }
-            // union of result and array
-            return result.concat(array)
-        }
-      }
-    }
-
-    throw unknownQuery(selection)
-  }, [])
-}
-
-/**
  * Return array of browsers by selection queries.
  *
  * @param {(string|string[])} [queries=browserslist.defaults] Browser queries.
@@ -299,83 +210,65 @@ function browserslist (queries, opts) {
 }
 
 /**
- * @typedef {object} BrowserslistQuery
- * @property {number} type A type constant like QUERY_OR @see QUERY_OR.
- * @property {string} queryString A query like "not ie < 11".
+ * Resolves queries into a browser list.
+ * @param {string|string[]} queries Queries to combine.
+ * Either an array of queries or a long string of queries.
+ * @param {object} [context] Optional arguments to
+ * the select function in `queries`.
+ * @returns {string[]} A list of browsers
  */
-
-/**
- * Parse a browserslist string query
- * @param {string} queries One or more queries as a string
- * @returns {BrowserslistQuery[]} An array of BrowserslistQuery
- */
-function parse (queries) {
-  var qs = []
-
-  do {
-    queries = doMatch(queries, qs)
-  } while (queries)
-
-  return qs
-}
-
-/**
- * Find query matches in a string. This function is meant to be called
- * repeatedly with the returned query string until there is no more matches.
- * @param {string} string A string with one or more queries.
- * @param {BrowserslistQuery[]} qs Out parameter,
- * will be filled with `BrowserslistQuery`.
- * @returns {string} The rest of the query string minus the matched part.
- */
-function doMatch (string, qs) {
-  var or = /(?:,\s*|\s+OR\s+)(?!NOT)(.*)/i
-  var and = /\s+AND\s+(.*)/i
-  var not = /\s+NOT\s+(.*)/i
-  var garbage = /(?:AND|OR|,|NOT)(?!.+)/i
-
-  return findAndCut(
-    string,
-    function (parsed, n, max) {
-      if (not.test(parsed)) {
-        qs.unshift({
-          type: QUERY_NOT,
-          queryString: parsed.match(not)[1].trim()
-        })
-        return true
-      } else if (and.test(parsed)) {
-        qs.unshift({
-          type: QUERY_AND,
-          queryString: parsed.match(and)[1].trim()
-        })
-        return true
-      } else if (or.test(parsed)) {
-        qs.unshift({
-          type: QUERY_OR,
-          queryString: parsed.match(or)[1].trim()
-        })
-        return true
-      } else if (n === max) { // no more chars
-        qs.unshift({
-          type: QUERY_OR,
-          queryString: parsed.trim()
-        })
-        return true
-      } else if (garbage.test(parsed)) { // a combiner without query
-        return true
-      }
-      return false
-    }
-  )
-}
-
-function findAndCut (string, predicate) {
-  for (var n = 1, max = string.length; n <= max; n++) {
-    var parsed = string.substr(-n, n) // get n char from the end of the string
-    if (predicate(parsed, n, max)) {
-      return string.replace(parsed, '')
-    }
+function resolve (queries, context) {
+  if (Array.isArray(queries)) {
+    queries = flatten(queries.map(parse))
+  } else {
+    queries = parse(queries)
   }
-  return ''
+
+  return queries.reduce(function (result, query, index) {
+    var selection = query.queryString
+
+    if (index === 0 && query.type === parse.QUERY_NOT) {
+      throw new BrowserslistError(
+        'Write any browsers query (for instance, `defaults`) ' +
+        'before `not ' + selection + '`')
+    }
+
+    for (var i = 0; i < QUERIES.length; i++) {
+      var type = QUERIES[i]
+      var match = selection.match(type.regexp)
+      if (match) {
+        var args = [context].concat(match.slice(1))
+        var array = type.select.apply(browserslist, args).map(function (j) {
+          var parts = j.split(' ')
+          if (parts[1] === '0') {
+            return parts[0] + ' ' + byName(parts[0]).versions[0]
+          } else {
+            return j
+          }
+        })
+
+        switch (query.type) {
+          case parse.QUERY_NOT:
+            return result.filter(function (j) {
+              return array.indexOf(j) === -1
+            })
+          case parse.QUERY_AND:
+            return result.filter(function (j) {
+              // remove result items not in array
+              // (intersect of result and array)
+              return array.indexOf(j) !== -1
+            })
+          case parse.QUERY_OR:
+          default:
+            // union of result and array
+            return result.concat(array)
+        }
+      }
+    }
+    console.log(queries)
+
+    throw unknownQuery(selection)
+  }, [])
 }
 
 function flatten (array) {
