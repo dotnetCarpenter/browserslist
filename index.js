@@ -265,7 +265,6 @@ function resolve (queries, context) {
         }
       }
     }
-    console.log(queries)
 
     throw unknownQuery(selection)
   }, [])
