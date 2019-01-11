@@ -51,10 +51,10 @@ it('can parse two AND queries', () => {
 
 it('can parse a query with extra whitespace', () => {
   var expected = [
-    { type: 'OR', queryString: 'defaults' },
-    { type: 'AND', queryString: 'ie 6' },
-    { type: 'NOT', queryString: 'chrome 10' },
-    { type: 'NOT', queryString: 'dead' }
+    { type: parse.QUERY_OR, queryString: 'defaults' },
+    { type: parse.QUERY_AND, queryString: 'ie 6' },
+    { type: parse.QUERY_NOT, queryString: 'chrome 10' },
+    { type: parse.QUERY_NOT, queryString: 'dead' }
   ]
   var actual = parse(' defaults  and ie    6 not    chrome 10, not dead')
 
@@ -64,10 +64,10 @@ it('can parse a query with extra whitespace', () => {
 it('can throw meaningfull error messages', () => {
   var str = '> 0.5%, last 2 versions, Firefox ESR, not and ,, not or dead'
   var expected = [
-    { type: 'OR', queryString: '> 0.5%' },
-    { type: 'OR', queryString: 'last 2 versions' },
-    { type: 'OR', queryString: 'Firefox ESR' },
-    { type: 'OR', queryString: 'dead' }
+    { type: parse.QUERY_OR, queryString: '> 0.5%' },
+    { type: parse.QUERY_OR, queryString: 'last 2 versions' },
+    { type: parse.QUERY_OR, queryString: 'Firefox ESR' },
+    { type: parse.QUERY_OR, queryString: 'dead' }
   ]
   var actual = parse(str)
 
