@@ -1,56 +1,52 @@
 var parse = require('./parse')
 
-// var test = ''
-// console.log(
-//   test, `\n`, parse(test)
-// )
+function log (test) {
+  console.log(
+    test, `\n`, parse(test)//.map(x => x + '')
+  )
+}
 
-// var test = 'and_chr 55'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+var test
 
-// var test = 'not ie 9'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+test = ''
+log(test)
 
-// var test = 'defaults and ie 6'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+test = '  '
+log(test)
 
-// var test = '   defaults     and     ie 6   '
-// console.log(
-//   test, `\n`, parse(test)
-// )
+test = 'l  ol'
+log(test)
 
-var test = ' defaults  and ie    6 not    chrome 10, not dead'
-console.log(
-  test, `\n`, parse(test)
-)
+// test = 'and_chr 55'
+// log(test)
 
-var test = '> 0.5%, last 2 versions, Firefox ESR, not and ,, not or dead'
-console.log(
-  test, `\n`, parse(test)
-)
+// test = 'not ie 9'
+// log(test)
 
-// var test = 'or dead'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+// test = 'defaults and ie 6'
+// log(test)
 
-// var test = 'last 3 Chrome major versions'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+// test = '   defaults     and     ie 6   '
+// log(test)
 
-// var test = 'last 1 Baidu version and not <2% in AT'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+// test = '>.5%,last   2 versions'
+// log(test)
 
-// var test = 'last 1 Baidu version not <2% in AT'
-// console.log(
-//   test, `\n`, parse(test)
-// )
+// test = ' defaults  and ie    6 not    chrome 10, not dead'
+// log(test)String
+
+// test = '>Stringrsions, Firefox ESR, not and ,, not or dead'
+// log(test)String
+
+// test = 'or dead'
+// log(test)
+
+// test = 'last 3 Chrome major versions'
+// log(test)
+
+// test = 'last 1 Baidu version and not <2% in AT'
+// log(test)
+
+// test = 'last 1 Baidu version not <2% in AT'
+// log(test)
+String

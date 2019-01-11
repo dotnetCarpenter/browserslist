@@ -1,14 +1,12 @@
 'use strict'
 
 /** @constant */
-var QUERY_OR = 'OR'
+var QUERY_OR = 1
 /** @constant */
-var QUERY_AND = 'AND'
+var QUERY_AND = 2
 /** @constant */
-var QUERY_NOT = 'NOT'
+var QUERY_NOT = 4
 
-// /** @constant */
-// var TOKEN_SPACE = 'SPACE'
 /** @constant */
 var TOKEN_NONTERMINAL = 'NONTERMINAL'
 /** @constant */
@@ -16,7 +14,7 @@ var TOKEN_TERMINAL = 'TERMINAL'
 /** @constant */
 var TOKEN_COMBINATOR = 'COMBINATOR'
 /** @constant */
-var TOKEN_BOF = 'BOF'
+var TOKEN_BOQ = 'BOQ'
 
 /**
  * @typedef {object} BrowserslistQuery
@@ -32,11 +30,46 @@ var TOKEN_BOF = 'BOF'
 function parse (queries) {
   queries = queries.trim()
 
-  if (queries === '') return []
+  // if (queries === '') return []
 
-  var tokens = lexer(queries)
+  var tokens = lexer2(queries)
+  return tokens
   // console.log(tokens)
-  return parser(tokens)
+  // return parser(tokens)
+}
+
+/* ORIGINAL
+1. convert string to array
+2. mark single char combinators
+3. mark non-terminals (only whitespace)
+4. collapse whitespace
+5. mark multiple char combinators
+6. collapse combinator chars to single token
+7. set first char as BOQ token
+*/
+
+function lexer2 (input, tokens) {
+  return tokenize(input[0], input.slice(1), tokens)
+}
+
+function tokenize (char, rest, tokens) {
+  debugger
+  tokens = tokens || []
+
+  if (!char) return tokens
+
+  var t = { v: char || rest, type: TOKEN_TERMINAL }
+
+  switch (char) {
+    case ',': t.type = TOKEN_COMBINATOR; break
+    case ' ': t.type = TOKEN_NONTERMINAL; break
+    case undefined:
+    case '': t = null; break
+  }
+
+  return rest.length > 0 && rest[0] === ' '
+    ? tokenize(rest[0], rest.slice(1))
+    : t
 }
 
 /**
@@ -112,7 +145,7 @@ function lexer (input) {
     return accu
   }, [])
 
-  if (tokens[0].type !== TOKEN_COMBINATOR) tokens[0].type = TOKEN_BOF
+  if (tokens[0].type !== TOKEN_COMBINATOR) tokens[0].type = TOKEN_BOQ
 
   return tokens
 
@@ -151,43 +184,20 @@ function parser (tokens) {
           break
       }
 
-      ast.unshift({ type: type, queryString: parsed.slice(0, -1).reverse().reduce(getV, '').trim() })
+      ast.unshift({ type: type, queryString: parsed.slice(0, -1).reverse().reduce(getValue, '').trim() })
       consuming = false
       parsed.splice(0)
     }
 
-    // #region old
-    // if (lst(parsed) && lst(parsed).type === TOKEN_COMBINATOR) {
-    //   var combinator = parsed.filter(isCombi).reverse().reduce(getV, '')
-    //   var queryString = parsed.filter(notCombi).reverse().reduce(getV, '')
-    //   // debugger
-    //   var query
-
-    //   switch (token.toLowerCase()) {
-    //     case 'not': query = { type: QUERY_NOT, queryString: queryString.trim() }; break
-
-    //     case 'or':
-    //     case ',': query = { type: QUERY_OR, queryString: queryString.trim() }; break
-
-    //     case 'and': query = { type: QUERY_AND, queryString: queryString.trim() }; break
-    //   }
-
-    //   ast.push(query)
-    //   parsed.splice(0)
-    //   query = null
-    //   eating = false
-    // }
-    // #endregion
-
-    if (token.type === TOKEN_BOF) {
-      ast.unshift({ type: QUERY_OR, queryString: parsed.slice(0).reverse().reduce(getV, '').trim() })
+    if (token.type === TOKEN_BOQ) {
+      ast.unshift({ type: QUERY_OR, queryString: parsed.slice(0).reverse().reduce(getValue, '').trim() })
     }
   }
 
   return ast
 }
 
-function getV (a, t) {
+function getValue (a, t) {
   return a + t.v
 }
 
@@ -209,66 +219,5 @@ function getV (a, t) {
 parse.QUERY_OR = QUERY_OR
 parse.QUERY_AND = QUERY_AND
 parse.QUERY_NOT = QUERY_NOT
-
-// #region old
-// /**
-//  * Find query matches in a string. This function is meant to be called
-//  * repeatedly with the returned query string until there is no more matches.
-//  * @param {string} string A string with one or more queries.
-//  * @param {BrowserslistQuery[]} qs Out parameter,
-//  * will be filled with `BrowserslistQuery`.
-//  * @returns {string} The rest of the query string minus the matched part.
-//  */
-// function doMatch (string, qs) {
-//   var or = /\s?(\b.+)(?:,|\bOR)(?:\s*)(?!not|and)/i
-//   var and = /\s*AND\s+(.+)/i
-//   var not = /\s*NOT\s+(.*)/i
-//   var garbage = /((\bAND|\bOR|\bNOT|,)\s*)(?=(\bAND|\bOR|\bNOT|,))/i
-
-//   return findAndCut(
-//     string,
-//     function (parsed, n, max) {
-//       if (garbage.test(parsed)) { // a combiner without query
-//         return true
-//       } else if (not.test(parsed)) {
-//         qs.push({
-//           type: QUERY_NOT,
-//           queryString: parsed.match(not)[1].trim()
-//         })
-//         return true
-//       } else if (and.test(parsed)) {
-//         qs.push({
-//           type: QUERY_AND,
-//           queryString: parsed.match(and)[1].trim()
-//         })
-//         return true
-//       } else if (or.test(parsed)) {
-//         qs.push({
-//           type: QUERY_OR,
-//           queryString: parsed.match(or)[1].trim()
-//         })
-//         return true
-//       } else if (n === max) { // no more chars
-//         qs.push({
-//           type: QUERY_OR,
-//           queryString: parsed.trim()
-//         })
-//         return true
-//       }
-//       return false
-//     }
-//   )
-// }
-
-// function findAndCut (string, predicate) {
-//   for (var n = 1, max = string.length; n <= max; n++) {
-//     var parsed = string.substring(0, n)
-//     if (predicate(parsed, n, max)) {
-//       return string.replace(parsed, '')
-//     }
-//   }
-//   return ''
-// }
-// #endregion
 
 module.exports = parse
